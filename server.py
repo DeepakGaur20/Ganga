@@ -13,6 +13,7 @@ except ImportError:
     import code
 
     def embed():
+        #interactive python shell
         myvars = globals()
         myvars.update(locals())
         shell = code.InteractiveConsole(myvars)
@@ -48,7 +49,8 @@ class SineWaveGenerator(Thread):
 
     def run(self):
         while not self._stopev:
-            logging.info("frequency value is  : %s",self.f.get_value())
+            #udpate value of sinewave node every 8 seconds
+            logging.warn("frequency value is  : %s",self.f.get_value())
             t = np.linspace(0,  self.f.get_value()* np.pi, 1024)
             a = np.sin(t)
             self.var.set_value(a.tolist())
@@ -57,9 +59,11 @@ class SineWaveGenerator(Thread):
 
 
 if __name__ == "__main__":
-    # optional: setup logging
-    logging.basicConfig(level=logging.INFO)
+    # set log level
+    logging.basicConfig(level=logging.WARN)
+    #create server
     server = Server()
+    #set endpoints
     server.set_endpoint("opc.tcp://0.0.0.0:4840/sinewave/server")
     server.set_server_name("SINE WAVE OPC SERVER")
     # set all possible endpoint policies for clients to connect through
@@ -67,11 +71,14 @@ if __name__ == "__main__":
     server.load_private_key("key.pem")
     server.set_security_policy([ua.SecurityPolicyType.Basic256Sha256_SignAndEncrypt])
     policyIDs = ["Username"]
+    #set credential manager
     server.set_security_IDs(policyIDs)
     server.user_manager.set_user_manager(user_manager)
+    #provide address namespace uri
     uri = "http://sinewave.myopc.com"
     idx = server.register_namespace(uri)
 
+    #create object fot nodes
     sineobj = server.nodes.objects.add_object(idx, "SineObj")
     freq = sineobj.add_variable(idx,"Frequnecy",2)
     freq.set_writable()
@@ -80,22 +87,23 @@ if __name__ == "__main__":
     amplitude.set_writable()
     frequency_node = sineobj.add_method(idx, "changefrequency", changefrequency, [ua.VariantType.Int64,ua.VariantType.Int64], [ua.VariantType.Int64])
 
-    # import some nodes from xml
-    #server.import_xml("custom_nodes.xml")
-
+    #create event generator
     sineevent = server.get_event_generator()
     sineevent.event.Severity = 300
     generator = SineWaveGenerator(amplitude,freq)
     generator.start()
-    logging.info("frequency node id :%s" ,freq.nodeid)
+    logging.warn("frequency node id :%s" ,freq.nodeid)
     server.start()
     try:
         while True:
+            #trigger event 
             sineevent.trigger(message="New sine wave generated")
+            #udpate value of sinewave node
             server.set_attribute_value(sinewave.nodeid, ua.DataValue(amplitude.get_value()))  # Server side write method which is a but faster than using set_value
             time.sleep(10)
         embed()
     finally:
         generator.stop()
         server.stop()
+
 
