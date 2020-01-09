@@ -30,7 +30,6 @@ Deployment Env. Docker
 - $make image
 - $make run
 - $make log
-- Run Below
 
 **Run below command to start client:**
 
